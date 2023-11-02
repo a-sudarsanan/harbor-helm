@@ -7,6 +7,7 @@ metadata:
     component: jobservice
 spec:
   replicas: {{ .Values.jobservice.replicas }}
+  revisionHistoryLimit: {{ .Values.jobservice.revisionHistoryLimit }}
   strategy:
     type: {{ .Values.updateStrategy.type }}
     {{- if eq .Values.updateStrategy.type "Recreate" }}
@@ -36,6 +37,7 @@ spec:
 {{- end }}
     spec:
       securityContext:
+        runAsUser: 10000
         fsGroup: 10000
 {{- if .Values.jobservice.serviceAccountName }}
       serviceAccountName: {{ .Values.jobservice.serviceAccountName }}
@@ -44,6 +46,8 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      automountServiceAccountToken: {{ .Values.jobservice.automountServiceAccountToken | default false }}
+      terminationGracePeriodSeconds: 120
       containers:
       - name: jobservice
         image: {{ .Values.jobservice.image.repository }}:{{ .Values.jobservice.image.tag }}
@@ -82,6 +86,13 @@ spec:
           - name: INTERNAL_TLS_TRUST_CA_PATH
             value: /etc/harbor/ssl/jobservice/ca.crt
           {{- end }}
+          {{- if .Values.registry.credentials.existingSecret }}
+          - name: REGISTRY_CREDENTIAL_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.registry.credentials.existingSecret }}
+                key: REGISTRY_PASSWD
+          {{- end }}
         envFrom:
         - configMapRef:
             name: "{{ template "harbor.jobservice" . }}-env"
@@ -95,7 +106,7 @@ spec:
           subPath: config.yml
         - name: job-logs
           mountPath: /var/log/jobs
-          subPath: {{ .Values.persistence.persistentVolumeClaim.jobservice.subPath }}
+          subPath: {{ .Values.persistence.persistentVolumeClaim.jobservice.jobLog.subPath }}
         {{- if .Values.internalTLS.enabled }}
         - name: jobservice-internal-certs
           mountPath: /etc/harbor/ssl/jobservice
@@ -108,9 +119,9 @@ spec:
         configMap:
           name: "{{ template "harbor.jobservice" . }}"
       - name: job-logs
-        {{- if and .Values.persistence.enabled (eq .Values.jobservice.jobLogger "file") }}
+        {{- if and .Values.persistence.enabled (has "file" .Values.jobservice.jobLoggers) }}
         persistentVolumeClaim:
-          claimName: {{ .Values.persistence.persistentVolumeClaim.jobservice.existingClaim | default (include "harbor.jobservice" .) }}
+          claimName: {{ .Values.persistence.persistentVolumeClaim.jobservice.jobLog.existingClaim | default (include "harbor.jobservice" .) }}
         {{- else }}
         emptyDir: {}
         {{- end }}
@@ -133,4 +144,7 @@ spec:
     {{- with .Values.jobservice.tolerations }}
       tolerations:
 {{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- if .Values.jobservice.priorityClassName }}
+      priorityClassName: {{ .Values.jobservice.priorityClassName }}
     {{- end }}
