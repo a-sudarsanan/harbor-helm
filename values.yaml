@@ -233,7 +233,7 @@ persistence:
         existingClaim: ""
         storageClass: ""
         subPath: ""
-        accessMode: ReadWriteOnce
+        accessMode: ReadWriteMany
         size: 1Gi
         annotations: {}
     # If external database is used, the following settings for database will
@@ -366,7 +366,7 @@ imagePullSecrets:
 # and chartmuseum): "RollingUpdate" or "Recreate"
 # Set it as "Recreate" when "RWM" for volumes isn't supported
 updateStrategy:
-  type: RollingUpdate
+  type: Recreate
 
 # debug, info, warning, error or fatal
 logLevel: info
