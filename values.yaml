@@ -231,7 +231,7 @@ persistence:
     jobservice:
       jobLog:
         existingClaim: ""
-        storageClass: ""
+        storageClass: "standard-rwx"
         subPath: ""
         accessMode: ReadWriteOnce
         size: 1Gi
